@@ -22,11 +22,8 @@ private:
      * m_oldActiveWin:记录上一个活动的窗口，失焦和获焦的事件是通过"当前活动
      * 窗口改变"这个信号来判断的，当前有一个窗口获得焦点，那么上一个窗口就会失
      * 去焦点，而这个成员就负责记录那个窗口
-     *
-     * 事实上如果这个服务是开机就存在的，那么可以直接维护m_windowList而不需要
-     * 每次都去文件中读数据，直接在create时保存然后在获取其他信号时通过信号中带
-     * 的WId在容器中读信息，但是这样就不好调试了，启动之后打开任何窗口，失焦事件
-     * 都会导致窗口崩溃
+     * 程序会记录所有创建的窗口，如果一个没有被记录的窗口发出以下任何事件都会发
+     * 生错误
      */
     KWindowSystem*               m_win;
     std::multimap<WId, WinData>  m_windowList;
@@ -34,6 +31,7 @@ private:
     WId                          m_oldActiveWin;
 
     WinData     getInfoByWid(WId);
+    WinData     getWinInfo(WId);
     std::string getAppName(std::ifstream&, std::string);
     std::string getAppUid(std::ifstream&, std::string);
 signals:

@@ -11,6 +11,7 @@
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
                                                                m_win(KWindowSystem::self()),
                                                                m_oldActiveWin(m_win->activeWindow())
+                                                               // m_oldActiveWin()
 {    // 注册服务、注册对象
     QDBusConnection::sessionBus().registerService("com.mdm.app.event");
     QDBusConnection::sessionBus().registerObject("/com/mdm/app/event",
@@ -26,6 +27,10 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
     connect(m_win, SIGNAL(windowAdded(WId)), this, SLOT(getAddSig(WId)));
     connect(m_win, SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
     connect(m_win, SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
+
+    WinData winData = getInfoByWid(m_win->activeWindow());
+    qDebug() << "active window:" << QString(winData.first);
+    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
 //QString MdmAppEvent::testMethod(const QString& arg)
@@ -58,7 +63,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
         return;
     // 在窗口层面，窗口活动等于得到焦点
     if (_id != m_oldActiveWin){
-        WinData winData = getInfoByWid(_id);
+        WinData winData = getWinInfo(_id);
         qDebug() << "get focus:" << QString(winData.first);
         emit app_get_focus(winData.first, winData.second);
     }
@@ -68,7 +73,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
         m_lastCloseWin.first = 0;
     }
     else {
-        oldWinData = getInfoByWid(m_oldActiveWin);
+        oldWinData = getWinInfo(m_oldActiveWin);
     }
     qDebug() << "lose focuse:" << QString(oldWinData.first);
     emit app_lose_focus(oldWinData.first, oldWinData.second);
@@ -84,7 +89,7 @@ void MdmAppEvent::getChangeSig(WId _id,
         // 可以判断是否是最小化
         KWindowInfo wininfo = m_win->windowInfo(_id, NET::Property::WMState);
         if(wininfo.isMinimized()){
-            WinData winData = getInfoByWid(_id);
+            WinData winData = getWinInfo(_id);
             qDebug() << "minimum window:" << QString(winData.first);
             emit app_minimum(winData.first, winData.second);
         }
@@ -174,8 +179,6 @@ WinData MdmAppEvent::getInfoByWid(WId _id)
 
     return std::make_pair(QString::fromStdString(name),
                      strtoul(UID.c_str(), NULL, 10));
-
-//    return (*m_windowList.find(_id)).second;
 }
 
 std::string MdmAppEvent::getAppName(std::ifstream& _inFile, std::string _line)
@@ -195,4 +198,12 @@ std::string MdmAppEvent::getAppUid(std::ifstream& _inFile, std::string _line)
     uint begin = 4;
     uint end = _line.find("\t", begin + 1);
     return _line.substr(begin + 1, (end - (begin + 1)));
+}
+
+WinData MdmAppEvent::getWinInfo(WId _id)
+{
+    // 完全使用m_windowList
+    // qDebug() << (*m_windowList.find(_id)).first;
+    auto win = m_windowList.find(_id);
+    return win->second;
 }
