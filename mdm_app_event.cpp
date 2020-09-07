@@ -10,8 +10,9 @@
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
                                                                m_win(KWindowSystem::self()),
-                                                               m_oldActiveWin(m_win->activeWindow())
-                                                               // m_oldActiveWin()
+                                                               m_oldActiveWin()
+                                                               // m_oldActiveWin(m_win->activeWindow())
+
 {    // 注册服务、注册对象
     QDBusConnection::sessionBus().registerService("com.mdm.app.event");
     QDBusConnection::sessionBus().registerObject("/com/mdm/app/event",
@@ -28,9 +29,9 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
     connect(m_win, SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
     connect(m_win, SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
 
-    WinData winData = getInfoByWid(m_win->activeWindow());
-    qDebug() << "active window:" << QString(winData.first);
-    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
+//    WinData winData = getInfoByWid(m_win->activeWindow());
+//    qDebug() << "active window:" << QString(winData.first);
+//    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
 //QString MdmAppEvent::testMethod(const QString& arg)
