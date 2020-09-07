@@ -73,28 +73,6 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     qDebug() << "lose focuse:" << QString(oldWinData.first);
     emit app_lose_focus(oldWinData.first, oldWinData.second);
     m_oldActiveWin = _id;
-/*
-    if (_id != 0 && _id != m_oldActiveWin) {
-        WinData winData = getInfoByWid(_id);
-        qDebug() << "get focus:" << QString(winData.first);
-        emit app_get_focus(winData.first, winData.second);
-        if (m_oldActiveWin != 0) {
-            if(!m_win->hasWId(m_oldActiveWin))
-                return;
-            WinData oldWinData;
-            if (_id == m_lastCloseWin.first) {
-                oldWinData = m_lastCloseWin.second;
-                m_lastCloseWin.first = 0;
-            }
-            else {
-                oldWinData = getInfoByWid(_id);
-            }
-            qDebug() << "lose focuse:" << QString(oldWinData.first);
-            emit app_lose_focus(oldWinData.first, oldWinData.second);
-        }
-        m_oldActiveWin = _id;
-    }
-    */
 }
 
 void MdmAppEvent::getChangeSig(WId _id,
@@ -196,6 +174,8 @@ WinData MdmAppEvent::getInfoByWid(WId _id)
 
     return std::make_pair(QString::fromStdString(name),
                      strtoul(UID.c_str(), NULL, 10));
+
+//    return (*m_windowList.find(_id)).second;
 }
 
 std::string MdmAppEvent::getAppName(std::ifstream& _inFile, std::string _line)
