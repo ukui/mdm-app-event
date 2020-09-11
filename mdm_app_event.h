@@ -30,10 +30,11 @@ private:
     std::pair<WId, WinData>      m_lastCloseWin;
     WId                          m_oldActiveWin;
 
-    WinData     getInfoByWid(WId);
-    WinData     getWinInfo(WId);
-    std::string getAppName(std::ifstream&, std::string);
-    std::string getAppUid(std::ifstream&, std::string);
+    WinData     getInfoByWid(const WId&);
+    WinData     getWinInfo(const WId&);
+    std::string getAppName(const std::string&);
+    std::string getAppName(const uint&);
+    std::string getAppUid(const std::string&);
 signals:
     void app_open(QString, uint);
     void app_close(QString, uint);

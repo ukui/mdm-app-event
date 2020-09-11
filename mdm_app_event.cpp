@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -10,8 +11,8 @@
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
                                                                m_win(KWindowSystem::self()),
-                                                               m_oldActiveWin()
-                                                               // m_oldActiveWin(m_win->activeWindow())
+                                                               // m_oldActiveWin()
+                                                               m_oldActiveWin(m_win->activeWindow())
 
 {    // 注册服务、注册对象
     QDBusConnection::sessionBus().registerService("com.mdm.app.event");
@@ -29,9 +30,10 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
     connect(m_win, SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
     connect(m_win, SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
 
-//    WinData winData = getInfoByWid(m_win->activeWindow());
-//    qDebug() << "active window:" << QString(winData.first);
-//    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
+    // for test
+    WinData winData = getInfoByWid(m_win->activeWindow());
+    qDebug() << "active window:" << QString(winData.first);
+    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
 //QString MdmAppEvent::testMethod(const QString& arg)
@@ -50,7 +52,8 @@ void MdmAppEvent::getAddSig(WId _id)
 void MdmAppEvent::getRemoveSig(WId _id)
 {
     WinData winData;
-    auto win = m_windowList.find(_id);
+    auto    win = m_windowList.find(_id);
+
     winData = win->second;
     qDebug() << "close window:" <<winData.first;
     emit app_close(winData.first, winData.second);
@@ -65,7 +68,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     // 在窗口层面，窗口活动等于得到焦点
     if (_id != m_oldActiveWin){
         WinData winData = getWinInfo(_id);
-        qDebug() << "get focus:" << QString(winData.first);
+        // qDebug() << "get focus:" << QString(winData.first);
         emit app_get_focus(winData.first, winData.second);
     }
     WinData oldWinData;
@@ -76,7 +79,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     else {
         oldWinData = getWinInfo(m_oldActiveWin);
     }
-    qDebug() << "lose focuse:" << QString(oldWinData.first);
+    // qDebug() << "lose focuse:" << QString(oldWinData.first);
     emit app_lose_focus(oldWinData.first, oldWinData.second);
     m_oldActiveWin = _id;
 }
@@ -91,7 +94,7 @@ void MdmAppEvent::getChangeSig(WId _id,
         KWindowInfo wininfo = m_win->windowInfo(_id, NET::Property::WMState);
         if(wininfo.isMinimized()){
             WinData winData = getWinInfo(_id);
-            qDebug() << "minimum window:" << QString(winData.first);
+            // qDebug() << "minimum window:" << QString(winData.first);
             emit app_minimum(winData.first, winData.second);
         }
     }
@@ -102,42 +105,36 @@ uint MdmAppEvent::closeApp(QString app_name, uint userid)
     if (userid == 0 || userid < 1000)
         return 1;
 
-    QList<WId> windows = m_win->windows();
+    // QList<WId> windows = m_win->windows();
     // 通过KF5提供的KWindowInfo来获取PID
     std::string pathNameInStd = app_name.toStdString();
     std::string appNameInStd(pathNameInStd.begin() + pathNameInStd.rfind('/') + 1,
                              pathNameInStd.end());
 
     // 通过遍历桌面所有window的列表来寻找需要的窗口
-    for (auto beg = windows.cbegin(); beg != windows.cend(); ++beg) {
-        if (!m_win->hasWId(*beg)) {
+    // 这里不再整体的Windows列表中遍历，转而到容器中遍历
+    for (auto beg = m_windowList.cbegin(); beg != m_windowList.cend(); ++beg) {
+        if (!m_win->hasWId(beg->first)) {
             return 3;
         }
-        KWindowInfo   wininfo = m_win->windowInfo(*beg, NET::Property::WMState);
+        KWindowInfo   wininfo = m_win->windowInfo(beg->first, NET::Property::WMState);
         uint          pid = wininfo.pid();
         std::string   name;
-        std::ifstream inFile;
         std::string   fileName;
-        std::string   line;
         std::string   UID;
 
         fileName = "/proc/" + std::to_string(pid) + "/status";
-        inFile.open(fileName);
-        if(!inFile.is_open()) {
-            std::cout << pid <<"The process does not exist." << std::endl;
-            return 2;
-        }
 
         // 读取应用名
-        name = getAppName(inFile, line);
+        // name = getAppName(fileName);
+        name = getAppName(pid);
         if (name == appNameInStd) {
-            UID = getAppUid(inFile, line);
-            // qDebug() << pid;
+            UID = getAppUid(fileName);
             if (strtoul(UID.c_str(), NULL, 10) == userid) {
                 std::string str = "kill " + std::to_string(pid);
                 qDebug() << QString::fromStdString(str);
                 if (system(str.c_str()) == 0) {
-                    windows = m_win->windows();
+                    // windows = m_win->windows();
                     return 0;
                 }
                 return 3;
@@ -150,7 +147,7 @@ uint MdmAppEvent::closeApp(QString app_name, uint userid)
 
 // private function
 
-WinData MdmAppEvent::getInfoByWid(WId _id)
+WinData MdmAppEvent::getInfoByWid(const WId& _id)
 {
     // 通过KF5提供的KWindowInfo来获取PID
     KWindowInfo wininfo = m_win->windowInfo(_id, NET::Property::WMState);
@@ -163,45 +160,91 @@ WinData MdmAppEvent::getInfoByWid(WId _id)
      * name:存储窗口所属的应用名称
      * UID:存储用户ID，文本信息取出来是字符串
     */
-    std::ifstream inFile;
     std::string   fileName;
-    std::string   line;
     std::string   UID;
 
     fileName = "/proc/" + std::to_string(pid) + "/status";
-    inFile.open(fileName);
-    if(!inFile.is_open()) {
-        std::cout << pid <<"The process does not exist." << std::endl;
-        // return;
-    }
 
-    name = getAppName(inFile, line);
-    UID = getAppUid(inFile, line);
+    // name = getAppName(fileName);
+    name = getAppName(pid);
+    UID  = getAppUid(fileName);
 
     return std::make_pair(QString::fromStdString(name),
                      strtoul(UID.c_str(), NULL, 10));
 }
 
-std::string MdmAppEvent::getAppName(std::ifstream& _inFile, std::string _line)
+std::string MdmAppEvent::getAppName(const std::string& _fileName)
 {
+    std::ifstream inFile;
+    std::string   line;
+
+    inFile.open(_fileName);
+    if(!inFile.is_open()) {
+        std::cout << "Can not open file." << std::endl;
+        // return;
+    }
     // 读取应用名
-    getline(_inFile, _line);
+    getline(inFile, line);
     uint        begin = 5;
-    uint        end = _line.find("\t", begin + 1);
-    return _line.substr(begin + 1, (end - (begin + 1)));
+    uint        end = line.find("\t", begin + 1);
+
+    return line.substr(begin + 1, (end - (begin + 1)));
 }
 
-std::string MdmAppEvent::getAppUid(std::ifstream& _inFile, std::string _line)
+std::string MdmAppEvent::getAppName(const uint& _pid)
 {
-    // 读取UID
-    for (int var = 0; var < 8; ++var)
-        getline(_inFile, _line);
-    uint begin = 4;
-    uint end = _line.find("\t", begin + 1);
-    return _line.substr(begin + 1, (end - (begin + 1)));
+    /*
+     * 使用这个函数代替同名重载函数获取应用名
+     * 经过测试，不是所有应用的名字都等于进程名，因此改用新的实现，这个实现
+     * 虽然完成了功能，但是由于需要用到c接口所以看起来可能比较混乱
+     * 逻辑：使用readlink从/proc/pid/exe读取窗口进程启动的文件，再通过dpkg -S
+     * 获取这个文件所属的安装包
+     * pathBuf：用来存储readlink获取到的连接到的路径
+     * nameBuf：用来存储fgets获取到的文件流中的数据，这个数据是dpkg -S的返回结果
+    */
+    char pathBuf[50] = "";
+    std::string path = "/proc/" + std::to_string(_pid) +"/exe";
+    qDebug() << path.c_str();
+    if (0 != readlink(path.c_str(), pathBuf, 50)) {
+        // qDebug() << pathBuf;
+        std::string pathStr = pathBuf;
+//        if (pathStr.find("(") != std::string::npos) {
+//            return std::string("nofile");
+//        }
+
+        std::string comm = "dpkg -S " + pathStr;
+        FILE*       fp = popen(comm.c_str(), "r");
+        char        nameBuf[50] = "";
+
+        fgets(nameBuf, 50, fp);
+        std::string packageName = nameBuf;
+        pclose(fp);
+        // qDebug() << "nameBuf:" << nameBuf;
+        std::string name (packageName.begin(),
+                          packageName.begin() + packageName.find(':'));
+        qDebug() << "name:" << name.c_str();
+        return name;
+    }
 }
 
-WinData MdmAppEvent::getWinInfo(WId _id)
+std::string MdmAppEvent::getAppUid(const std::string& _fileName)
+{
+    std::ifstream inFile;
+    std::string   line;
+    // 这里应该放入函数中，把传参改一下
+    inFile.open(_fileName);
+    if(!inFile.is_open())
+        std::cout << "Can not open file." << std::endl;
+
+    // 读取UID
+    for (int var = 0; var < 9; ++var)
+        getline(inFile, line);
+    uint begin = 4;
+    uint end = line.find("\t", begin + 1);
+    return line.substr(begin + 1, (end - (begin + 1)));
+}
+
+WinData MdmAppEvent::getWinInfo(const WId& _id)
 {
     // 完全使用m_windowList
     // qDebug() << (*m_windowList.find(_id)).first;
