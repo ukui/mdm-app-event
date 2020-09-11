@@ -11,8 +11,8 @@
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
                                                                m_win(KWindowSystem::self()),
-                                                               // m_oldActiveWin()
-                                                               m_oldActiveWin(m_win->activeWindow())
+                                                               m_oldActiveWin()
+                                                               // m_oldActiveWin(m_win->activeWindow())
 
 {    // 注册服务、注册对象
     QDBusConnection::sessionBus().registerService("com.mdm.app.event");
@@ -31,9 +31,9 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_windowList(),
     connect(m_win, SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
 
     // for test
-    WinData winData = getInfoByWid(m_win->activeWindow());
-    qDebug() << "active window:" << QString(winData.first);
-    m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
+    // WinData winData = getInfoByWid(m_win->activeWindow());
+    // qDebug() << "active window:" << QString(winData.first);
+    // m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
 //QString MdmAppEvent::testMethod(const QString& arg)
@@ -132,7 +132,7 @@ uint MdmAppEvent::closeApp(QString app_name, uint userid)
             UID = getAppUid(fileName);
             if (strtoul(UID.c_str(), NULL, 10) == userid) {
                 std::string str = "kill " + std::to_string(pid);
-                qDebug() << QString::fromStdString(str);
+                // qDebug() << QString::fromStdString(str);
                 if (system(str.c_str()) == 0) {
                     // windows = m_win->windows();
                     return 0;
@@ -195,7 +195,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
 {
     /*
      * 使用这个函数代替同名重载函数获取应用名
-     * 经过测试，不是所有应用的名字都等于进程名，因此改用新的实现，这个实现
+     * 因为不是所有应用的名字都等于进程名，因此改用新的实现，这个实现
      * 虽然完成了功能，但是由于需要用到c接口所以看起来可能比较混乱
      * 逻辑：使用readlink从/proc/pid/exe读取窗口进程启动的文件，再通过dpkg -S
      * 获取这个文件所属的安装包
@@ -222,7 +222,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
         // qDebug() << "nameBuf:" << nameBuf;
         std::string name (packageName.begin(),
                           packageName.begin() + packageName.find(':'));
-        qDebug() << "name:" << name.c_str();
+        // qDebug() << "name:" << name.c_str();
         return name;
     }
 }
