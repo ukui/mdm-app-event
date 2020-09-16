@@ -51,6 +51,8 @@ void MdmAppEvent::getAddSig(WId _id)
 
 void MdmAppEvent::getRemoveSig(WId _id)
 {
+    if (m_windowList.find(_id) == m_windowList.end())
+        return;
     WinData winData;
     auto    win = m_windowList.find(_id);
 
@@ -63,23 +65,30 @@ void MdmAppEvent::getRemoveSig(WId _id)
 
 void MdmAppEvent::getActiveWinChanged(WId _id)
 {
-    if(!m_win->hasWId(_id))
-        return;
     // 在窗口层面，窗口活动等于得到焦点
-    if (_id != m_oldActiveWin){
+    if(m_windowList.find(_id) != m_windowList.end()) {
         WinData winData = getWinInfo(_id);
-        // qDebug() << "get focus:" << QString(winData.first);
+        qDebug() << "get focus:" << QString(winData.first);
         emit app_get_focus(winData.first, winData.second);
     }
+//    else {
+//        m_oldActiveWin = _id;
+//    }
+
+
     WinData oldWinData;
-    if (m_oldActiveWin == m_lastCloseWin.first) {
+    if (m_oldActiveWin != NULL && m_oldActiveWin == m_lastCloseWin.first) {
         oldWinData = m_lastCloseWin.second;
         m_lastCloseWin.first = 0;
     }
     else {
+        if (m_windowList.find(m_oldActiveWin) == m_windowList.end()) {
+            m_oldActiveWin = _id;
+            return;
+        }
         oldWinData = getWinInfo(m_oldActiveWin);
     }
-    // qDebug() << "lose focuse:" << QString(oldWinData.first);
+    qDebug() << "lose focuse:" << QString(oldWinData.first);
     emit app_lose_focus(oldWinData.first, oldWinData.second);
     m_oldActiveWin = _id;
 }
@@ -88,6 +97,8 @@ void MdmAppEvent::getChangeSig(WId _id,
                                NET::Properties _properties,
                                NET::Properties2 _properties2)
 {
+    if (m_windowList.find(_id) == m_windowList.end())
+        return;
     if(_properties.testFlag(NET::Property::XAWMState)) {
         // 最小化和从最小化变为显示时会发出这个信号
         // 可以判断是否是最小化
