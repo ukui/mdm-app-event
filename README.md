@@ -23,7 +23,7 @@
     app_lose_focus(String, UInt32)
         窗口失去焦点时发出
 
-所有信号中的String都是代表发出信号的窗口所属的应用的安装包名
+所有信号中的String都是代表发出信号的窗口所属的应用的应用的.desktop文件名，如chrome对应google-chrome.desktop，就输出google-chrome
 所有信号中的UInt32都是打开窗口的用户的UID
 
 ## 接口
