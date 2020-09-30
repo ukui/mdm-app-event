@@ -31,7 +31,7 @@ private:
      * 闭事件发生时，获取到的窗口id是已经被销毁的窗口id
      * m_desktopfps:存储的是一个键值对，形式为 安装包名：desktop名
      */
-    KWindowSystem*              m_win;
+    std::shared_ptr<KWindowSystem>              m_win;
     std::multimap<WId, WinData> m_windowList;
     std::pair<WId, WinData>     m_lastCloseWin;
     WId                         m_oldActiveWin;
@@ -42,9 +42,9 @@ private:
     std::string getAppName(const uint&);        // 根据进程id获取进程的安装包名
     std::string getAppUid(const std::string&);  // 根据/proc/pid/status获取UID
     std::string getPkgName(const std::string&); // 根据可执行文件路径获取安装包名
-    std::string getPkgName(const std::string&&);
     QString     getDesktopNameByPkg(const QString&); // 根据包名获取desktop文件名
     WId         getWidByDesktop(const std::string&, const uint&); // 根据desktop文件名和UID获取Wid
+    std::string getPkgNamePy(const uint&);      // 获取Python程序的安装包名
 
     // 多线程遍历/usr/share/applications，并记录所有desktop文件的安装包名，存储在容器m_desktopfps中
     bool        initDesktopFps();
@@ -59,7 +59,7 @@ Q_SIGNALS:
 
 public Q_SLOTS:
 //    QString testMethod(const QString&);
-    uint closeApp(QString, uint);
+    uint closeApp(QString appid, uint userid);
 
 private Q_SLOTS:
     void getAddSig(WId);

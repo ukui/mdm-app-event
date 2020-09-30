@@ -1,5 +1,13 @@
 # mdm_app_event_service
 
+## changelog
+	* 将输入和输出改为/usr/share/applichations/下.desktop文件名
+	* 增加开机自启功能，安装后下一次开机会自动启动在后台，可以通过d-feet查看
+	* 服务崩溃后会自动拉起
+	* 安装位置改为/usr/bin/MdmAppEvent，可以通过执行MdmAppEvent直接运行
+	* 修复打开搜索不到安装包的应用时崩溃的bug
+	* 修复只关闭相同应用的一个窗口bug
+
 ## 依赖
     sudo apt install libkf5windowsystem-dev
 
@@ -40,6 +48,4 @@
     反复打开关闭切换qtcreator、qt助手、终端、Chrome、Firefox、vscode、peony等
     服务正常工作
 
-## 注意
-    这个服务内使用了一个容器来记录所有创建的窗口，其余事件都从这个容器中获取相应的信息
-    因此无法监控到在服务启动之前开启的窗口，需要把服务设置为开机自启，在桌面启动前启动
+

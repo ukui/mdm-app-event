@@ -1,0 +1,12 @@
+[Unit]
+Description=mdm app event monitor
+After=dbus.service
+
+[Service]
+Type=dbus
+BusName=com.mdm.app.event
+ExecStart=/usr/sbin/MdmAppEvent
+NotifyAccess=main
+
+[Install]
+WantedBy=multi-user.target

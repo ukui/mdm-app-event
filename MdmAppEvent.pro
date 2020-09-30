@@ -25,7 +25,22 @@ SOURCES += \
 HEADERS += \
     mdm_app_event.h
 
+TARGET = MdmAppEvent
+
+target.source += $$TARGET
+target.path = /usr/sbin
+#service.files += etc/com.mdm.app.event.service
+#service.path = /lib/systemd/system/
+config.files += etc/com.mdm.app.event.conf
+config.path = /etc/dbus-1/system.d/
+
+INSTALLS += target service config
 # Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
+#qnx: target.path = /tmp/$${TARGET}/bin
+#else: unix:!android: target.path = /opt/$${TARGET}/bin
+#!isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    etc/com.mdm.app.event.conf \
+    etc/com.mdm.app.event.desktop \
+    etc/com.mdm.app.event.service

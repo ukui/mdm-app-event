@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=MdmAppEvent
+Comment=mdm app event monitor
+Keywords=mdm;
+Exec=/usr/sbin/MdmAppEvent
+StartupNotify=false
+Terminal=false
+Type=Application
+X-UKUI-AutoRestart=true
+NoDisplay=true
