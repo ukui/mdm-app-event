@@ -13,15 +13,17 @@
 #include "mdm_app_event.h"
 
 #define APP_PATH "/usr/share/applications/"
-#define BAD_WINDOW "bad_window"
+// #define BAD_WINDOW "bad_window"
 
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSystem::self()),
                                                                m_windowList(),
                                                                m_oldActiveWin(0)
-                                                               // m_oldActiveWin(m_win->activeWindow())
 
-{    // 注册服务、注册对象
+{
+    m_lastCloseWin = std::make_pair(0, std::make_pair(QString(), 0));
+
+    // 注册服务、注册对象
     QDBusConnection::systemBus().unregisterService("com.mdm.app.event");
     if (!QDBusConnection::systemBus().registerService("com.mdm.app.event"))
         qWarning() << "register dbus service error!";
@@ -33,13 +35,13 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
 
 
     // 建立连接接受FK5的信号
-    connect(&*m_win, SIGNAL(windowChanged(
+    connect(m_win.get(), SIGNAL(windowChanged(
                             WId, NET::Properties, NET::Properties2)),
             this, SLOT(getChangeSig(
                            WId, NET::Properties, NET::Properties2)));
-    connect(&*m_win, SIGNAL(windowAdded(WId)), this, SLOT(getAddSig(WId)));
-    connect(&*m_win, SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
-    connect(&*m_win, SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
+    connect(m_win.get(), SIGNAL(windowAdded(WId)), this, SLOT(getAddSig(WId)));
+    connect(m_win.get(), SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
+    connect(m_win.get(), SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
 
 
     // for test
@@ -48,16 +50,15 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
     // m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
-//QString MdmAppEvent::testMethod(const QString& arg)
-//{
-//    return QString("Get interfaceMethod reply: %1").arg(arg);
-//}
+// QString MdmAppEvent::testMethod(const QString& arg)
+// {
+//     return QString("Get interfaceMethod reply: %1").arg(arg);
+// }
 
 void MdmAppEvent::getAddSig(WId _id)
 {
-    // m_win->setState(_id, NET::Max);
     WinData winData = getInfoByWid(_id);
-    if (winData.first == BAD_WINDOW)
+    if (winData.first.isEmpty())
         return;
 
     m_windowList.insert(std::make_pair(_id, winData));
@@ -68,18 +69,21 @@ void MdmAppEvent::getAddSig(WId _id)
 
 void MdmAppEvent::getRemoveSig(WId _id)
 {
-    if (m_windowList.find(_id) == m_windowList.end())
-        return;
     WinData winData;
     auto    win = m_windowList.find(_id);
-    winData = win->second;
-
-    if (winData.first != BAD_WINDOW) {
-        qDebug() << "close window:" << winData.first;
-        Q_EMIT app_close(winData.first, winData.second);
+    if (win == m_windowList.end()) {
+        m_lastCloseWin = std::make_pair(0, std::make_pair(QString(), 0));
     }
-    m_lastCloseWin = *win;
-    m_windowList.erase(win);
+    else {
+        winData = win->second;
+        if (!winData.first.isEmpty()) {
+            qDebug() << "close window:" << winData.first;
+            Q_EMIT app_close(winData.first, winData.second);
+        }
+        // 在这里出的问题
+        m_lastCloseWin = *win;
+        m_windowList.erase(win);
+    }
 }
 
 void MdmAppEvent::getActiveWinChanged(WId _id)
@@ -88,7 +92,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     if(m_windowList.find(_id) != m_windowList.end()) {
         WinData winData = getWinInfo(_id);
         // QString app = getDesktopNameByPkg(winData.first);
-        if (winData.first != BAD_WINDOW) {
+        if (!winData.first.isEmpty()) {
             qDebug() << "get focus:" << winData.first;
             Q_EMIT app_get_focus(winData.first, winData.second);
         }
@@ -108,7 +112,7 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     }
 
     // QString app = getDesktopNameByPkg(oldWinData.first);
-    if (oldWinData.first != BAD_WINDOW) {
+    if (!oldWinData.first.isEmpty()) {
         qDebug() << "lose focuse:" << oldWinData.first;
         Q_EMIT app_lose_focus(oldWinData.first, oldWinData.second);
     }
@@ -129,7 +133,7 @@ void MdmAppEvent::getChangeSig(WId _id,
         if(wininfo.isMinimized()){
             WinData winData = getWinInfo(_id);
             // QString app = getDesktopNameByPkg(winData.first);
-            if (winData.first != BAD_WINDOW) {
+            if (!winData.first.isEmpty()) {
                 qDebug() << "minimum window:" << winData.first;
                 Q_EMIT app_minimum(winData.first, winData.second);
             }
@@ -148,7 +152,6 @@ uint MdmAppEvent::closeApp(QString appid, uint userid)
         if ((begin->second).first == appid && (begin->second).second == userid) {
             uint pid = KWindowInfo(begin->first, NET::Property::WMState).pid();
             // qDebug() << pid;
-            // qDebug() << std::string("kill " + std::to_string(pid)).c_str();
             system(std::string("kill " + std::to_string(pid)).c_str());
             isFind = true;
         }
@@ -170,9 +173,9 @@ WinData MdmAppEvent::getInfoByWid(const WId& _id)
     uint        pid = wininfo.pid();
     std::string name;
 
-    /*
-     * 通过文件流来从文件/proc/pid/status中读取UID和应用名
-     * line:按行从文件中读数据，作为行的缓存
+    /*!
+     * \brief:通过文件流来从文件/proc/pid/status中读取UID和应用名
+     * \param:line:按行从文件中读数据，作为行的缓存
      * name:存储窗口所属的应用名称
      * UID:存储用户ID，文本信息取出来是字符串
     */
@@ -184,9 +187,8 @@ WinData MdmAppEvent::getInfoByWid(const WId& _id)
     name = getAppName(pid);
     UID  = getAppUid(fileName);
 
-    if (UID == BAD_WINDOW) {
-        name = BAD_WINDOW;
-        return std::make_pair(QString::fromStdString(name), 1);
+    if (UID.empty() || name.empty()) {
+        return std::make_pair(QString(), 1);
     }
     return std::make_pair(QString::fromStdString(name),
                      strtoul(UID.c_str(), NULL, 10));
@@ -195,7 +197,7 @@ WinData MdmAppEvent::getInfoByWid(const WId& _id)
 std::string MdmAppEvent::getAppName(const uint& _pid)
 {
     /*!
-     * \paragraph 进程id
+     * \param 进程id
      * \details 首先通过进程号获取启动进程的文件然后查找安装这个文件的安装包名
      * 如果找不到安装包，返回一个错误
      * 查找这个安装包都安装了哪些文件，挑选出其中的*.desktop文件并放入容器
@@ -213,7 +215,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
     // qDebug() << path.c_str();
     if (0 != readlink(path.c_str(), pathBuf, 100)) {
         if (strlen(pathBuf) == 0)
-            return BAD_WINDOW;
+            return "";
 
         std::string pathStr = pathBuf;
 
@@ -223,142 +225,61 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
 
 
         std::string pkg = getPkgName(pathStr);
-        // qDebug() << pkg.c_str();
-        if (pkg == BAD_WINDOW)
-            return BAD_WINDOW;
-
-        std::string comm = "dpkg -L " + pkg;
-        FILE*       fp = popen(comm.c_str(), "r");
-        char        buff[255];
-        std::vector<std::string> desktopName;
-        for (int i = 0; fgets(buff, 255, fp) != NULL; ++i) {
-            // qDebug() << buff;
-            std::string line = buff;
-            if (line.find(".desktop") != std::string::npos) {
-                desktopName.push_back(std::string(line.begin()+line.rfind("/")+1,
-                                                  line.begin()+line.rfind(".desktop")));
-            }
+        if (pkg == "") {
+            qWarning() << QString::fromStdString(pathStr) + "can not find install packaeg";
+            return "";
         }
-        pclose(fp);
+        std::vector<std::string> desktopName = getPkgContent(pkg);
         if (desktopName.empty()) {
             qWarning() << "MdmAppEvent::getAppName this install package:" + QString::fromStdString(pkg) + "with no desktop file";
-            return BAD_WINDOW;
+            return "";
         }
         if (desktopName.size() == 1) {
             // 如果只有一个desktop文件，万事大吉
             return desktopName[0];
         }
 
-        // 对照desktopName和上面从exe取到的可执行文件名，如果一致就反回它
+        // 从进程目录的exe中截取启动的文件名
         std::string exe;
-        if (pathStr.rfind('/') != std::string::npos)
-            exe = std::string(pathStr.begin()+pathStr.rfind('/')+1,
-                             pathStr.end());
-        else {
-            exe = pathStr;
+        if (pathStr.rfind("/") != std::string::npos) {
+            if (pathStr.rfind(" ") != std::string::npos)
+                exe = std::string(pathStr.begin()+pathStr.rfind("/")+1,
+                                  pathStr.begin()+pathStr.rfind(" ")-1);
+            else
+                exe = std::string(pathStr.begin()+pathStr.rfind('/')+1,
+                                  pathStr.end());
             qDebug() << "exe = " <<exe.c_str();
         }
-        for (auto begin = desktopName.begin(); begin != desktopName.end(); ++begin) {
-            if (*begin == exe)
-                 return exe;
-        }
-
-        // 如果不一致就返回一个相似度最高的，这里的相似度找的是包含exe且名称长度最接近的
-        long unsigned int minSize = 0;
-        std::string name;
-        for (auto begin = desktopName.begin(); begin != desktopName.end(); ++begin) {
-            if (begin->find(exe) != std::string::npos) {
-                if (minSize == 0 || begin->size() < minSize) {
-                    minSize = begin->size();
-                    name = *begin;
-                }
+        else {
+            if (pathStr.rfind(" ") != std::string::npos) {
+                exe = std::string(pathStr.begin(), pathStr.begin()+pathStr.rfind(" ")-1);
             }
-        }
-        if (minSize != 0) {
-            qWarning() << QString::fromStdString("It is from pkg:" + pkg + " run from:" + exe);
-            return name;
-        }
-
-        // 如果没有找到包含exe的desktop名，则用可执行文件名exe和desktop文件中exec的路径名对比，看看exec路径中有没有包含的
-        std::vector<std::pair<std::string, std::string>> execInDesktop;
-        for (auto begin = desktopName.begin(); begin != desktopName.end(); ++begin) {
-            std::ifstream inFile;
-            std::string   line;
-            std::string   exec;
-
-            inFile.open("/usr/share/applications/" + *begin + ".desktop");
-            // qDebug() << QString::fromStdString("/usr/share/applications/" + *begin + ".desktop");
-            if (!inFile.is_open()) {
-                qWarning() << QString::fromStdString("MdmAppEvent::getAppName(const uint& _pid) Open File Error:/usr/share/applications/" + *begin + ".desktop");
-                continue;
-            }
-            // 遍历desktop文件，将其中相关的exec存储到容器中
-            while (getline(inFile, line)) {
-                if (line.find("Exec") == std::string::npos)
-                    continue;
-
-                if (line.rfind("/") != std::string::npos) {
-                    if (line.rfind(" ") != std::string::npos)
-                        exec = std::string(line.begin()+line.rfind("/")+1, line.begin()+line.rfind(" "));
-                    else
-                        exec = std::string(line.begin()+line.rfind("/")+1, line.end());
-                }
-                else {
-                    if (line.rfind(" ") != std::string::npos)
-                        exec = std::string(line.begin(), line.begin() + line.rfind(" "));
-                    else
-                        exec = std::string(line.begin(), line.end());
-                }
-                // qDebug() << line.c_str();
-                if (exec.find(exe) != std::string::npos) {
-                    // 全都放到外部容器中，容器中是 exec:desktop
-                    execInDesktop.push_back(std::make_pair(exec, *begin));
-                    // return *begin;
-                }
-            }
-            inFile.close();
-        }
-        // 从execInDesktop找一个最相近的（短）
-        minSize = 0;
-        name = "";
-        for (auto begin = execInDesktop.begin(); begin != execInDesktop.end(); ++begin) {
-            if (minSize == 0 || begin->first.size() < minSize) {
-                minSize = begin->first.size();
-                name = begin->second;
-            }
-        }
-        if (minSize != 0)
-            return name;
-
-        // 仍然找不到就找一个和包名最接近的desktop
-        minSize = 0;
-        name = " ";
-        for (auto begin = desktopName.begin(); begin != desktopName.end(); ++begin) {
-            if (begin->find(pkg) != std::string::npos) {
-                if (minSize == 0 || begin->size() < minSize) {
-                    minSize = begin->size();
-                    name = *begin;
-                }
-            }
-        }
-        if (minSize != 0) {
-            qWarning() << QString::fromStdString("It is from pkg:" + pkg + " run from:" + exe);
-            return name;
+            else
+                exe = pathStr;
+            qDebug() << "exe = " <<exe.c_str();
         }
 
-        // 再找不到就找一个最短的
-        name = desktopName[0];
+        std::string appid = getAppNameByExe(desktopName, exe);
+        if (!appid.empty())
+            return appid;
+
+        appid = getAppNameByExecPath(desktopName, exe);
+        if (!appid.empty())
+            return appid;
+
+        // 以上办法都不能匹配到就找一个最短的，同时给一个警告
+        std::string name = desktopName[0];
         for (auto begin = desktopName.begin(); begin != desktopName.end(); ++begin) {
             if (begin->size() < name.size())
                 name = *begin;
         }
+        qWarning() << "getAppName：this app:" + QString::fromStdString(name) + " may not get the ture name";
         return name;
     }
     else {
-        qWarning() << "read link file error";
-        return BAD_WINDOW;
+        qWarning() << "read the file: " + QString::fromStdString(path) + " link error";
+        return "";
     }
-    return BAD_WINDOW;
 }
 
 std::string MdmAppEvent::getPkgName(const std::string& _fpath)
@@ -372,7 +293,7 @@ std::string MdmAppEvent::getPkgName(const std::string& _fpath)
 
     std::string pkgInfo = nameBuf;
     if (pkgInfo == "")
-        return BAD_WINDOW;
+        return "";
 
     return std::string(pkgInfo.begin(),
                        pkgInfo.begin() + pkgInfo.find(':'));
@@ -385,7 +306,7 @@ std::string MdmAppEvent::getAppUid(const std::string& _fileName)
     inFile.open(_fileName);
     if(!inFile.is_open()) {
         qDebug() << "Can not open file.";
-        return BAD_WINDOW;
+        return "";
     }
     // 读取UID
     for (int var = 0; var < 9; ++var)
@@ -407,20 +328,13 @@ std::string MdmAppEvent::getPkgNamePy(const uint& _pid)
     std::ifstream inFile;
     std::string   line;
     std::string   path = "/proc/" + std::to_string(_pid) +"/cmdline";
-//    FILE* file = fopen(path.c_str(), "r");
-//    char  buff[255];
-
-//    fgets(buff, 255, (FILE*)file);
-//    std::string str = buff;
-//    qDebug() << buff;
     inFile.open(path);
     if (!inFile.is_open()) {
         qDebug() << "MdmAppEvent::getPkgNamePy open file error:" + QString::fromStdString(path);
-        return BAD_WINDOW;
+        return "";
     }
     while (!inFile.eof()) {
         getline(inFile, line);
-        // qDebug() << "============" << line.size();
         if (line.find("python") != std::string::npos) {
             std::string exepath(line.begin() + line.find("python") + 8,
                                 line.end());
@@ -431,5 +345,108 @@ std::string MdmAppEvent::getPkgNamePy(const uint& _pid)
     }
     qDebug() << "proc" + QString(_pid) + "is not a python app";
     inFile.close();
-    return BAD_WINDOW;
+    return "";
+}
+
+std::vector<std::string> MdmAppEvent::getPkgContent(const std::string& _pkgname)
+{
+    std::string comm = "dpkg -L " + _pkgname;
+    FILE*       fp = popen(comm.c_str(), "r");
+    char        buff[255];
+    if (strlen(buff) == 0) {
+        qWarning() << "getPkgContent: dpkg -L error";
+        return std::vector<std::string>();
+    }
+    std::vector<std::string> desktopName;
+    for (int i = 0; fgets(buff, 255, fp) != NULL; ++i) {
+        // qDebug() << buff;
+        std::string line = buff;
+        if (line.find(".desktop") != std::string::npos) {
+            desktopName.push_back(std::string(line.begin()+line.rfind("/")+1,
+                                              line.begin()+line.rfind(".desktop")));
+        }
+    }
+    pclose(fp);
+    return desktopName;
+}
+
+std::string MdmAppEvent::getAppNameByExe(const std::vector<std::string>& _desktops, const std::string& _exe)
+{
+    // 对照desktopName和从进程目录下exe中取到的可执行文件名，如果一致就反回它
+    for (auto begin = _desktops.begin(); begin != _desktops.end(); ++begin) {
+        if (*begin == _exe)
+             return *begin;
+    }
+
+    // 如果不一致就返回一个相似度最高的，这里的相似度找的是包含exe且名称长度最接近的
+    unsigned long minSize = 0;
+    std::string name;
+    for (auto begin = _desktops.begin(); begin != _desktops.end(); ++begin) {
+        if (begin->find(_exe) != std::string::npos) {
+            if (minSize == 0 || begin->size() < minSize) {
+                minSize = begin->size();
+                name = *begin;
+            }
+        }
+    }
+    if (minSize != 0) {
+        qWarning() << QString::fromStdString("getAppNameByExe:This app is run from:" + _exe);
+        return name;
+    }
+    return "";
+}
+
+std::string MdmAppEvent::getAppNameByExecPath(const std::vector<std::string>& _desktops, const std::string& _exe)
+{
+    // 如果没有找到包含exe的desktop名，则用可执行文件名exe和desktop文件中exec的路径名对比，看看exec路径中有没有包含的
+    std::vector<std::pair<std::string, std::string>> execInDesktop;
+    for (auto begin = _desktops.begin(); begin != _desktops.end(); ++begin) {
+        std::ifstream inFile;
+        std::string   line;
+        std::string   exec;
+
+        inFile.open("/usr/share/applications/" + *begin + ".desktop");
+        // qDebug() << QString::fromStdString("/usr/share/applications/" + *begin + ".desktop");
+        if (!inFile.is_open()) {
+            qWarning() << QString::fromStdString("MdmAppEvent::getAppName(const uint& _pid) Open File Error:/usr/share/applications/" + *begin + ".desktop");
+            continue;
+        }
+        // 遍历desktop文件，将其中相关的exec存储到容器中
+        while (getline(inFile, line)) {
+            if (line.find("Exec") == std::string::npos)
+                continue;
+
+            if (line.rfind("/") != std::string::npos) {
+                if (line.rfind(" ") != std::string::npos)
+                    exec = std::string(line.begin()+line.rfind("/")+1, line.begin()+line.rfind(" "));
+                else
+                    exec = std::string(line.begin()+line.rfind("/")+1, line.end());
+            }
+            else {
+                if (line.rfind(" ") != std::string::npos)
+                    exec = std::string(line.begin(), line.begin() + line.rfind(" "));
+                else
+                    exec = std::string(line.begin(), line.end());
+            }
+            // qDebug() << line.c_str();
+            if (exec.find(_exe) != std::string::npos) {
+                // 全都放到外部容器中，容器中是 exec:desktop
+                execInDesktop.push_back(std::make_pair(exec, *begin));
+                // return *begin;
+            }
+        }
+        inFile.close();
+    }
+    // 从execInDesktop找一个最相近的
+    unsigned long minSize = 0;
+    std::string name;
+    for (auto begin = execInDesktop.begin(); begin != execInDesktop.end(); ++begin) {
+        if (minSize == 0 || begin->first.size() < minSize) {
+            minSize = begin->first.size();
+            name = begin->second;
+        }
+    }
+    if (minSize != 0)
+        return name;
+    return "";
 }

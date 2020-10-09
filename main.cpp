@@ -24,9 +24,6 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
     const char *function = context.function ? context.function : "";
     switch (type) {
     case QtDebugMsg:
-        if (!log_file) {
-            break;
-        }
         fprintf(log_file? log_file: stdout, "Debug: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
         break;
     case QtInfoMsg:
@@ -49,7 +46,7 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
 
 int main(int argc, char *argv[])
 {
-    qInstallMessageHandler(messageOutput);
+    // qInstallMessageHandler(messageOutput);
     if (setuid(0) != 0)
         qWarning() << "enhance permission error";
     QApplication a(argc, argv);

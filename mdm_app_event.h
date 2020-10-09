@@ -31,11 +31,11 @@ private:
      * 闭事件发生时，获取到的窗口id是已经被销毁的窗口id
      * m_desktopfps:存储的是一个键值对，形式为 安装包名：desktop名
      */
-    std::shared_ptr<KWindowSystem>              m_win;
-    std::multimap<WId, WinData> m_windowList;
-    std::pair<WId, WinData>     m_lastCloseWin;
-    WId                         m_oldActiveWin;
-    desktops                    m_desktopfps;
+    std::shared_ptr<KWindowSystem> m_win;
+    std::multimap<WId, WinData>    m_windowList;
+    std::pair<WId, WinData>        m_lastCloseWin;
+    WId                            m_oldActiveWin;
+    desktops                       m_desktopfps;
 
     WinData     getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
     WinData     getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
@@ -44,18 +44,21 @@ private:
     std::string getPkgName(const std::string&); // 根据可执行文件路径获取安装包名
     QString     getDesktopNameByPkg(const QString&); // 根据包名获取desktop文件名
     WId         getWidByDesktop(const std::string&, const uint&); // 根据desktop文件名和UID获取Wid
-    std::string getPkgNamePy(const uint&);      // 获取Python程序的安装包名
-
-    // 多线程遍历/usr/share/applications，并记录所有desktop文件的安装包名，存储在容器m_desktopfps中
-    bool        initDesktopFps();
-    static void insertDesktops(MdmAppEvent*, const QStringList&, const int&, const int&, desktops&);
-
+    std::string getPkgNamePy(const uint&);      // 根据进程id获取Python程序的安装包名
+    std::string getAppNameByExe(const std::vector<std::string>&, const std::string&);      // 根据启动文件名匹配appid
+    std::string getAppNameByExecPath(const std::vector<std::string>&, const std::string&); // 根据desktop中的exec项与启动文件名exe匹配appid
+    std::vector<std::string> getPkgContent(const std::string&); // 根据安装包名获取安装包的安装的desktop文件
 Q_SIGNALS:
-    void app_open(QString, uint);
-    void app_close(QString, uint);
-    void app_minimum(QString, uint);
-    void app_get_focus(QString, uint);
-    void app_lose_focus(QString, uint);
+    /*!
+     * \brief 对外发出的dbus信号
+     * \param appid:应用的desktop文件名，以/usr/share/applications目录下的为准
+     * userid:启动应用的用户id
+     */
+    void app_open(QString appid, uint userid);
+    void app_close(QString appid, uint userid);
+    void app_minimum(QString appid, uint userid);
+    void app_get_focus(QString appid, uint userid);
+    void app_lose_focus(QString appid, uint userid);
 
 public Q_SLOTS:
 //    QString testMethod(const QString&);
