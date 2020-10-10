@@ -341,7 +341,7 @@ std::vector<std::string> MdmAppEvent::getPkgContent(const std::string& _pkgname)
     std::string comm = "dpkg -L " + _pkgname;
     FILE*       fp = popen(comm.c_str(), "r");
     char        buff[255];
-    if (strlen(buff) == 0) {
+    if (fp = NULL) {
         qWarning() << "getPkgContent: dpkg -L error";
         return std::vector<std::string>();
     }
