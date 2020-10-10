@@ -1,0 +1,2 @@
+#systemctl enable com.mdm.app.event.service
+chmod u+s /usr/sbin/MdmAppEvent

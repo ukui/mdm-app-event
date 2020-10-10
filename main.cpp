@@ -5,48 +5,48 @@
 
 void messageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    QByteArray localMsg = msg.toLocal8Bit();
-    QByteArray currentTime = QTime::currentTime().toString().toLocal8Bit();
+    static QMutex mutex;
+    mutex.lock();
+
+    QString text;
+    switch (type)
+    {
+    case QtDebugMsg:
+     text = QString("Debug:");
+     break;
+
+    case QtWarningMsg:
+     text = QString("Warning:");
+     break;
+
+    case QtCriticalMsg:
+     text = QString("Critical:");
+     break;
+
+    case QtFatalMsg:
+     text = QString("Fatal:");
+    }
+
+    QString context_info = QString("File:(%1) Line:(%2)").arg(QString(context.file)).arg(context.line);
+    QString current_date_time = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss ddd");
+    QString current_date = QString("(%1)").arg(current_date_time);
+    QString message = QString("%1 %2 %3 %4").arg(text).arg(context_info).arg(current_date).arg(msg);
 
     QString logFilePath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/MdmAppEvent.log";
+    // QString logFilePath = "/home/weinan1/prj/MdmAppEvent.log";
+    QFile file(logFilePath);
+    file.open(QIODevice::WriteOnly | QIODevice::Append);
+    QTextStream text_stream(&file);
+    text_stream << message << "\r\n";
+    file.flush();
+    file.close();
 
-    bool showDebug = true;
-    if (!QFile::exists(logFilePath)) {
-        showDebug = false;
-    }
-    FILE *log_file = nullptr;
-
-    if (showDebug) {
-        log_file = fopen(logFilePath.toLocal8Bit().constData(), "a+");
-    }
-
-    const char *file = context.file ? context.file : "";
-    const char *function = context.function ? context.function : "";
-    switch (type) {
-    case QtDebugMsg:
-        fprintf(log_file? log_file: stdout, "Debug: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
-        break;
-    case QtInfoMsg:
-        fprintf(log_file? log_file: stdout, "Info: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
-        break;
-    case QtWarningMsg:
-        fprintf(log_file? log_file: stderr, "Warning: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
-        break;
-    case QtCriticalMsg:
-        fprintf(log_file? log_file: stderr, "Critical: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
-        break;
-    case QtFatalMsg:
-        fprintf(log_file? log_file: stderr, "Fatal: %s: %s (%s:%u, %s)\n", currentTime.constData(), localMsg.constData(), file, context.line, function);
-        break;
-    }
-
-    if (log_file)
-        fclose(log_file);
+    mutex.unlock();
 }
 
 int main(int argc, char *argv[])
 {
-    // qInstallMessageHandler(messageOutput);
+    qInstallMessageHandler(messageOutput);
     if (setuid(0) != 0)
         qWarning() << "enhance permission error";
     QApplication a(argc, argv);

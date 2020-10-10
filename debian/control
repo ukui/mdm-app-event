@@ -1,0 +1,22 @@
+Source: mdm-app-event-service
+Section: admin
+Priority: optional
+Maintainer: wangweinan <wangweinan@kylinos.cn>
+Build-Depends: debhelper-compat (= 12),
+			   qt5-qmake,
+               qtbase5-dev,
+               qtbase5-private-dev,
+               qtchooser,
+               qtbase5-dev-tools,
+			   libkf5windowsystem-dev,
+			   libglib2.0-dev
+Standards-Version: 4.4.1
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Browser: https://salsa.debian.org/debian/mdm-app-event-service
+#Vcs-Git: https://salsa.debian.org/debian/mdm-app-event-service.git
+
+Package: mdm-app-event-service
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

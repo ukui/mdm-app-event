@@ -1,8 +1,5 @@
 #include <stdlib.h>
 #include <unistd.h>
-#include <utility>
-#include <thread>
-// #include <pthread.h>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -13,8 +10,6 @@
 #include "mdm_app_event.h"
 
 #define APP_PATH "/usr/share/applications/"
-// #define BAD_WINDOW "bad_window"
-
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSystem::self()),
                                                                m_windowList(),
@@ -76,11 +71,8 @@ void MdmAppEvent::getRemoveSig(WId _id)
     }
     else {
         winData = win->second;
-        if (!winData.first.isEmpty()) {
-            qDebug() << "close window:" << winData.first;
-            Q_EMIT app_close(winData.first, winData.second);
-        }
-        // 在这里出的问题
+        qDebug() << "close window:" << winData.first;
+        Q_EMIT app_close(winData.first, winData.second);
         m_lastCloseWin = *win;
         m_windowList.erase(win);
     }
@@ -92,10 +84,8 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     if(m_windowList.find(_id) != m_windowList.end()) {
         WinData winData = getWinInfo(_id);
         // QString app = getDesktopNameByPkg(winData.first);
-        if (!winData.first.isEmpty()) {
-            qDebug() << "get focus:" << winData.first;
-            Q_EMIT app_get_focus(winData.first, winData.second);
-        }
+        qDebug() << "get focus:" << winData.first;
+        Q_EMIT app_get_focus(winData.first, winData.second);
     }
 
     WinData oldWinData;
@@ -133,10 +123,8 @@ void MdmAppEvent::getChangeSig(WId _id,
         if(wininfo.isMinimized()){
             WinData winData = getWinInfo(_id);
             // QString app = getDesktopNameByPkg(winData.first);
-            if (!winData.first.isEmpty()) {
-                qDebug() << "minimum window:" << winData.first;
-                Q_EMIT app_minimum(winData.first, winData.second);
-            }
+            qDebug() << "minimum window:" << winData.first;
+            Q_EMIT app_minimum(winData.first, winData.second);
         }
     }
 }
