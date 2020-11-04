@@ -6,9 +6,11 @@
 #include <QtCore/QObject>
 #include <QtDBus>
 #include <KWindowSystem>
+#include <memory>
 
 // WinData 包名：UID 的键值对
-typedef std::pair<QString, uint> WinData;
+//typedef std::pair<QString, uint> WinData;
+typedef std::string WinData;
 typedef std::unordered_map<std::string, std::string> desktops;
 
 class MdmAppEvent : public QObject
@@ -37,10 +39,13 @@ private:
     WId                            m_oldActiveWin;
     desktops                       m_desktopfps;
 
-    WinData     getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
-    WinData     getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
+    //WinData     getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
+    //WinData     getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
+    std::string getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
+    std::string getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
+
     std::string getAppName(const uint&);        // 根据进程id获取进程的安装包名
-    std::string getAppUid(const std::string&);  // 根据/proc/pid/status获取UID
+    //std::string getAppUid(const std::string&);  // 根据/proc/pid/status获取UID
     std::string getPkgName(const std::string&); // 根据可执行文件路径获取安装包名
     QString     getDesktopNameByPkg(const QString&); // 根据包名获取desktop文件名
     WId         getWidByDesktop(const std::string&, const uint&); // 根据desktop文件名和UID获取Wid
@@ -54,15 +59,15 @@ Q_SIGNALS:
      * \param appid:应用的desktop文件名，以/usr/share/applications目录下的为准
      * userid:启动应用的用户id
      */
-    void app_open(QString appid, uint userid);
-    void app_close(QString appid, uint userid);
-    void app_minimum(QString appid, uint userid);
-    void app_get_focus(QString appid, uint userid);
-    void app_lose_focus(QString appid, uint userid);
+    void app_open(QString appid);
+    void app_close(QString appid);
+    void app_minimum(QString appid);
+    void app_get_focus(QString appid);
+    void app_lose_focus(QString appid);
 
 public Q_SLOTS:
 //    QString testMethod(const QString&);
-    uint closeApp(QString appid, uint userid);
+    uint closeApp(QString appid);
 
 private Q_SLOTS:
     void getAddSig(WId);

@@ -10,19 +10,20 @@
 #include "mdm_app_event.h"
 
 #define APP_PATH "/usr/share/applications/"
-
+//注册 DBus
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSystem::self()),
                                                                m_windowList(),
                                                                m_oldActiveWin(0)
 
 {
-    m_lastCloseWin = std::make_pair(0, std::make_pair(QString(), 0));
+    m_lastCloseWin = std::make_pair(0, std::string());
 
     // 注册服务、注册对象
-    QDBusConnection::systemBus().unregisterService("com.mdm.app.event");
-    if (!QDBusConnection::systemBus().registerService("com.mdm.app.event"))
+    //QDBusConnection::systemBus().unregisterService("com.mdm.app.event");
+    QDBusConnection::sessionBus().unregisterService("com.mdm.app.event");
+    if (!QDBusConnection::sessionBus().registerService("com.mdm.app.event"))
         qWarning() << "register dbus service error!";
-    if (!QDBusConnection::systemBus().registerObject("/com/mdm/app/event",
+    if (!QDBusConnection::sessionBus().registerObject("/com/mdm/app/event",
                                                      "com.mdm.app.event", this,
                                                      QDBusConnection :: ExportAllSlots |
                                                      QDBusConnection :: ExportAllSignals))
@@ -31,13 +32,13 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
 
     // 建立连接接受FK5的信号
     connect(m_win.get(), SIGNAL(windowChanged(
-                            WId, NET::Properties, NET::Properties2)),
-            this, SLOT(getChangeSig(
+                           WId, NET::Properties, NET::Properties2)),
+                           this, SLOT(getChangeSig(
                            WId, NET::Properties, NET::Properties2)));
     connect(m_win.get(), SIGNAL(windowAdded(WId)), this, SLOT(getAddSig(WId)));
+
     connect(m_win.get(), SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
     connect(m_win.get(), SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
-
 
     // for test
     // WinData winData = getInfoByWid(m_win->activeWindow());
@@ -49,30 +50,30 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
 // {
 //     return QString("Get interfaceMethod reply: %1").arg(arg);
 // }
-
 void MdmAppEvent::getAddSig(WId _id)
 {
-    WinData winData = getInfoByWid(_id);
-    if (winData.first.isEmpty())
+    std::string winData = getInfoByWid(_id);
+    if (winData.length()==0)
         return;
 
     m_windowList.insert(std::make_pair(_id, winData));
 
-    qDebug() << "open window:" << winData.first;
-    Q_EMIT app_open(winData.first, winData.second);
+    qDebug() << "open window:" << QString::fromStdString(winData);
+    //Q_EMIT app_open(winData.first, winData.second);
+    Q_EMIT app_open(QString::fromStdString(winData));
 }
 
 void MdmAppEvent::getRemoveSig(WId _id)
 {
-    WinData winData;
+    std::string winData;
     auto    win = m_windowList.find(_id);
     if (win == m_windowList.end()) {
-        m_lastCloseWin = std::make_pair(0, std::make_pair(QString(), 0));
+        m_lastCloseWin = std::make_pair(0, std::string());
     }
     else {
         winData = win->second;
-        qDebug() << "close window:" << winData.first;
-        Q_EMIT app_close(winData.first, winData.second);
+        qDebug() << "close window:" << QString::fromStdString(winData);
+        Q_EMIT app_close(QString::fromStdString(winData));
         m_lastCloseWin = *win;
         m_windowList.erase(win);
     }
@@ -82,13 +83,13 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
 {
     // 在窗口层面，窗口活动等于得到焦点
     if(m_windowList.find(_id) != m_windowList.end()) {
-        WinData winData = getWinInfo(_id);
+        std::string winData = getWinInfo(_id);
         // QString app = getDesktopNameByPkg(winData.first);
-        qDebug() << "get focus:" << winData.first;
-        Q_EMIT app_get_focus(winData.first, winData.second);
+        qDebug() << "get focus:" << QString::fromStdString(winData);
+        Q_EMIT app_get_focus(QString::fromStdString(winData));
     }
 
-    WinData oldWinData;
+    std::string oldWinData;
     if (m_oldActiveWin != 0 && m_oldActiveWin == m_lastCloseWin.first) {
         oldWinData = m_lastCloseWin.second;
         m_lastCloseWin.first = 0;
@@ -102,9 +103,9 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     }
 
     // QString app = getDesktopNameByPkg(oldWinData.first);
-    if (!oldWinData.first.isEmpty()) {
-        qDebug() << "lose focuse:" << oldWinData.first;
-        Q_EMIT app_lose_focus(oldWinData.first, oldWinData.second);
+    if (oldWinData.length()!=0) {
+        qDebug() << "lose focuse:" << QString::fromStdString(oldWinData);
+        Q_EMIT app_lose_focus(QString::fromStdString(oldWinData));
     }
     m_oldActiveWin = _id;
 }
@@ -121,23 +122,22 @@ void MdmAppEvent::getChangeSig(WId _id,
         // 可以判断是否是最小化
         KWindowInfo wininfo(_id, NET::Property::WMState);
         if(wininfo.isMinimized()){
-            WinData winData = getWinInfo(_id);
+            std::string winData = getWinInfo(_id);
             // QString app = getDesktopNameByPkg(winData.first);
-            qDebug() << "minimum window:" << winData.first;
-            Q_EMIT app_minimum(winData.first, winData.second);
+            qDebug() << "minimum window:" << QString::fromStdString(winData);
+            Q_EMIT app_minimum(QString::fromStdString(winData));
         }
     }
 }
 
-uint MdmAppEvent::closeApp(QString appid, uint userid)
+uint MdmAppEvent::closeApp(QString appid)
 {
-    if (userid == 0 || userid < 1000)
-        return 1;
+
     bool isFind = false;
     std::multimap<WId, WinData> list = m_windowList;
     for (auto begin = list.begin(); begin != list.end(); ++begin) {
         // qDebug() << begin->first;
-        if ((begin->second).first == appid && (begin->second).second == userid) {
+        if (begin->second == appid.toStdString()) {
             uint pid = KWindowInfo(begin->first, NET::Property::WMState).pid();
             // qDebug() << pid;
             system(std::string("kill " + std::to_string(pid)).c_str());
@@ -154,7 +154,8 @@ uint MdmAppEvent::closeApp(QString appid, uint userid)
 
 // private function
 
-WinData MdmAppEvent::getInfoByWid(const WId& _id)
+//WinData MdmAppEvent::getInfoByWid(const WId& _id)
+std::string MdmAppEvent::getInfoByWid(const WId& _id)
 {
     // 通过KF5提供的KWindowInfo来获取PID
     KWindowInfo wininfo(_id, NET::Property::WMState);
@@ -173,13 +174,14 @@ WinData MdmAppEvent::getInfoByWid(const WId& _id)
     fileName = "/proc/" + std::to_string(pid) + "/status";
 
     name = getAppName(pid);
-    UID  = getAppUid(fileName);
+    //UID  = getAppUid(fileName);
 
-    if (UID.empty() || name.empty()) {
-        return std::make_pair(QString(), 1);
+    if ( name.empty()) {
+        return std::string();
     }
-    return std::make_pair(QString::fromStdString(name),
-                     strtoul(UID.c_str(), NULL, 10));
+    //return std::make_pair(QString::fromStdString(name),
+                     //strtoul(UID.c_str(), NULL, 10));
+    return name;
 }
 
 std::string MdmAppEvent::getAppName(const uint& _pid)
@@ -286,7 +288,7 @@ std::string MdmAppEvent::getPkgName(const std::string& _fpath)
     return std::string(pkgInfo.begin(),
                        pkgInfo.begin() + pkgInfo.find(':'));
 }
-
+#if 0
 std::string MdmAppEvent::getAppUid(const std::string& _fileName)
 {
     std::ifstream inFile;
@@ -304,8 +306,9 @@ std::string MdmAppEvent::getAppUid(const std::string& _fileName)
     uint end = line.find("\t", begin + 1);
     return line.substr(begin + 1, (end - (begin + 1)));
 }
+#endif
 
-WinData MdmAppEvent::getWinInfo(const WId& _id)
+std::string MdmAppEvent::getWinInfo(const WId& _id)
 {
     auto win = m_windowList.find(_id);
     return win->second;

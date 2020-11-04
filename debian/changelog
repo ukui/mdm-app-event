@@ -1,4 +1,10 @@
-mdm-app-event-service (1.0.1-0930) v101; urgency=medium
+mdm-app-event-service (1.0.1-1+1028) v101; urgency=medium
+
+  * com.mdm.app.event dbus service
+
+ -- qinxuchu <qinxuchu@kylinos.cn>  Wed, 28 Oct 2020 15:49:27 +0800
+
+mdm-app-event-service (1.0.1-1+0930) v101; urgency=medium
 
   * change the session bus to system bus
 
@@ -9,3 +15,4 @@ mdm-app-event-service (1.0.1-1) v101; urgency=medium
   * com.mdm.app.event dbus service
 
  -- wangweinan <wangweinan@kylinos.cn>  Fri, 11 Sep 2020 10:49:27 +0800
+
