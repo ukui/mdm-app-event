@@ -7,11 +7,13 @@
 #include <QtDBus>
 #include <KWindowSystem>
 #include <memory>
+#include <string>
 
 // WinData 包名：UID 的键值对
 //typedef std::pair<QString, uint> WinData;
 typedef std::string WinData;
 typedef std::unordered_map<std::string, std::string> desktops;
+typedef std::pair<QString,int> txState;
 
 class MdmAppEvent : public QObject
 {
@@ -53,6 +55,13 @@ private:
     std::string getAppNameByExe(const std::vector<std::string>&, const std::string&);      // 根据启动文件名匹配appid
     std::string getAppNameByExecPath(const std::vector<std::string>&, const std::string&); // 根据desktop中的exec项与启动文件名exe匹配appid
     std::vector<std::string> getPkgContent(const std::string&); // 根据安装包名获取安装包的安装的desktop文件
+
+
+    //监听 tx 应用名字
+    txState m_txSateChanged;
+    QString m_txOpenedAppName="";
+    QString m_txClosedAppName="";
+
 Q_SIGNALS:
     /*!
      * \brief 对外发出的dbus信号
@@ -76,6 +85,11 @@ private Q_SLOTS:
                       NET::Properties,
                       NET::Properties2);
     void getActiveWinChanged(WId);
+
+    //监听 tx 应用名字
+    void getTXClosed(QString,QString,int);
+    void getTXOpened(QString,QString);
+    void getTXStateChanged(QString,QString,int);
 };
 
 #endif // MDMAPPEVENT_H

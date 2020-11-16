@@ -40,6 +40,26 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
     connect(m_win.get(), SIGNAL(windowRemoved(WId)), this, SLOT(getRemoveSig(WId)));
     connect(m_win.get(), SIGNAL(activeWindowChanged(WId)), this, SLOT(getActiveWinChanged(WId)));
 
+
+    QDBusConnection::sessionBus().connect("cn.txeduplatform.server",
+                                              "/cn/txeduplatform/server",
+                                              "cn.txeduplatform.server.apps",
+                                              "OnClosed", this,
+                                              SLOT(getTXClosed(QString,QString,int)));
+
+
+    //监听腾讯应用的信号
+    QDBusConnection::sessionBus().connect("cn.txeduplatform.server",
+                                              "/cn/txeduplatform/server",
+                                              "cn.txeduplatform.server.apps",
+                                              "OnOpened", this,
+                                              SLOT(getTXOpened(QString,QString)));
+
+    QDBusConnection::sessionBus().connect("cn.txeduplatform.server",
+                                              "/cn/txeduplatform/server",
+                                              "cn.txeduplatform.server.apps",
+                                              "OnStateChanged", this,
+                                              SLOT(getTXStateChanged(QString,QString,int)));
     // for test
     // WinData winData = getInfoByWid(m_win->activeWindow());
     // qDebug() << "active window:" << QString(winData.first);
@@ -50,6 +70,44 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
 // {
 //     return QString("Get interfaceMethod reply: %1").arg(arg);
 // }
+/* void MdmAppEvent::getTXClosed(std::string a,std::string b,int c) */
+void MdmAppEvent::getTXClosed(QString appid,QString appname,int lifetime)
+{
+    qDebug() << "close window:" << appname;
+    Q_EMIT app_close(appname);
+
+}
+
+/* void MdmAppEvent::getTXOpened(std::string a,std::string b) */
+void MdmAppEvent::getTXOpened(QString appid,QString appname)
+{
+    qDebug() << "open window:" << appname;
+    Q_EMIT app_open(appname);
+}
+
+/* void MdmAppEvent::getTXStateChanged(std::string a,std::string b,int c) */
+void MdmAppEvent::getTXStateChanged(QString appid,QString appname,int state)
+{
+    if(state == 1)
+    {
+        //最小化
+        qDebug() << "minimum window:" << appname;
+        Q_EMIT app_minimum(appname);
+    }
+    else if(state == 5)
+    {
+        //失去焦点
+        qDebug() << "lose focus:" << appname;
+        Q_EMIT app_lose_focus(appname);
+    }
+    else if(state == 6)
+    {
+        //得到焦点
+        qDebug() << "get focus:" << appname;
+        Q_EMIT app_get_focus(appname);
+    }
+}
+
 void MdmAppEvent::getAddSig(WId _id)
 {
     std::string winData = getInfoByWid(_id);
@@ -58,9 +116,12 @@ void MdmAppEvent::getAddSig(WId _id)
 
     m_windowList.insert(std::make_pair(_id, winData));
 
-    qDebug() << "open window:" << QString::fromStdString(winData);
-    //Q_EMIT app_open(winData.first, winData.second);
-    Q_EMIT app_open(QString::fromStdString(winData));
+    if(winData != "txeduplatform-runtime")
+    {
+        qDebug() << "open window:" << QString::fromStdString(winData);
+        //Q_EMIT app_open(winData.first, winData.second);
+        Q_EMIT app_open(QString::fromStdString(winData));
+    }
 }
 
 void MdmAppEvent::getRemoveSig(WId _id)
@@ -72,10 +133,14 @@ void MdmAppEvent::getRemoveSig(WId _id)
     }
     else {
         winData = win->second;
-        qDebug() << "close window:" << QString::fromStdString(winData);
-        Q_EMIT app_close(QString::fromStdString(winData));
-        m_lastCloseWin = *win;
-        m_windowList.erase(win);
+
+        if(winData != "txeduplatform-runtime")
+        {
+            Q_EMIT app_close(QString::fromStdString(winData));
+            qDebug() << "close window:" << QString::fromStdString(winData);
+            m_lastCloseWin = *win;
+            m_windowList.erase(win);
+        }
     }
 }
 
@@ -85,8 +150,11 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
     if(m_windowList.find(_id) != m_windowList.end()) {
         std::string winData = getWinInfo(_id);
         // QString app = getDesktopNameByPkg(winData.first);
-        qDebug() << "get focus:" << QString::fromStdString(winData);
-        Q_EMIT app_get_focus(QString::fromStdString(winData));
+        if(winData != "txeduplatform-runtime")
+        {
+            qDebug() << "get focus:" << QString::fromStdString(winData);
+            Q_EMIT app_get_focus(QString::fromStdString(winData));
+        }
     }
 
     std::string oldWinData;
@@ -104,8 +172,11 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
 
     // QString app = getDesktopNameByPkg(oldWinData.first);
     if (oldWinData.length()!=0) {
-        qDebug() << "lose focuse:" << QString::fromStdString(oldWinData);
-        Q_EMIT app_lose_focus(QString::fromStdString(oldWinData));
+        if(oldWinData != "txeduplatform-runtime")
+        {
+            qDebug() << "lose focuse:" << QString::fromStdString(oldWinData);
+            Q_EMIT app_lose_focus(QString::fromStdString(oldWinData));
+        }
     }
     m_oldActiveWin = _id;
 }
@@ -124,8 +195,11 @@ void MdmAppEvent::getChangeSig(WId _id,
         if(wininfo.isMinimized()){
             std::string winData = getWinInfo(_id);
             // QString app = getDesktopNameByPkg(winData.first);
-            qDebug() << "minimum window:" << QString::fromStdString(winData);
-            Q_EMIT app_minimum(QString::fromStdString(winData));
+            if(winData != "txeduplatform-runtime")
+            {
+                qDebug() << "minimum window:" << QString::fromStdString(winData);
+                Q_EMIT app_minimum(QString::fromStdString(winData));
+            }
         }
     }
 }
