@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -7,10 +7,22 @@
 #include <QDir>
 #include <QString>
 
+#include <gio/gdesktopappinfo.h>
+
 #include "mdm_app_event.h"
 
 #define APP_PATH "/usr/share/applications/"
-//注册 DBus
+
+std::map<std::string, std::string>
+MdmAppEvent::TXAppList = {
+                            {"0779b2dd64bb4d2ea4dfcb48dbb8c491", "tencent-chinese-composition-correction"},
+                            {"2f4a6a9071b642ee6eb72f55de74506e", "tencent-course-center"},
+                            {"38651128f1384d07a69ca184e6f9ccb6", "tencent-english-composition-correction"},
+                            {"558f8d31c2524e68292bccd8cda17d23", "tencent-homework"},
+                            {"06c71dbf873c46229d66cde9c4e8f18e", "tencent-precise-practice"},
+                            {"b12f7283c27f4e48a7bd9510587f3c42", "tencent-translator"}
+                         };
+
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSystem::self()),
                                                                m_windowList(),
                                                                m_oldActiveWin(0)
@@ -66,45 +78,50 @@ MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSyst
     // m_windowList.insert(std::make_pair(m_win->activeWindow(), winData));
 }
 
-// QString MdmAppEvent::testMethod(const QString& arg)
-// {
-//     return QString("Get interfaceMethod reply: %1").arg(arg);
-// }
-/* void MdmAppEvent::getTXClosed(std::string a,std::string b,int c) */
-void MdmAppEvent::getTXClosed(QString appid,QString appname,int lifetime)
+void MdmAppEvent::getTXClosed(QString TxAppid,QString TxAppname,int lifetime)
 {
-    qDebug() << "close window:" << appname;
-    Q_EMIT app_close(appname);
+    QString appid = QString::fromStdString(getAppNameByTxappid(TxAppid.toStdString()));
+    if (!appid.isEmpty()) {
+        qDebug() << "close window:" << appid;
+        Q_EMIT app_close(appid);
+    }
 
 }
 
-/* void MdmAppEvent::getTXOpened(std::string a,std::string b) */
-void MdmAppEvent::getTXOpened(QString appid,QString appname)
+void MdmAppEvent::getTXOpened(QString TxAppid,QString TxAppname)
 {
-    qDebug() << "open window:" << appname;
-    Q_EMIT app_open(appname);
+    QString appid = QString::fromStdString(getAppNameByTxappid(TxAppid.toStdString()));
+    if (!appid.isEmpty()) {
+        qDebug() << "open window:" << appid;
+        Q_EMIT app_open(appid);
+    }
 }
 
-/* void MdmAppEvent::getTXStateChanged(std::string a,std::string b,int c) */
-void MdmAppEvent::getTXStateChanged(QString appid,QString appname,int state)
+void MdmAppEvent::getTXStateChanged(QString TxAppid,QString TxAppname,int state)
 {
     if(state == 1)
     {
-        //最小化
-        qDebug() << "minimum window:" << appname;
-        Q_EMIT app_minimum(appname);
+        QString appid = QString::fromStdString(getAppNameByTxappid(TxAppid.toStdString()));
+        if (!appid.isEmpty()) {
+            qDebug() << "minimum window:" << appid;
+            Q_EMIT app_minimum(appid);
+        }
     }
     else if(state == 5)
     {
-        //失去焦点
-        qDebug() << "lose focus:" << appname;
-        Q_EMIT app_lose_focus(appname);
+        QString appid = QString::fromStdString(getAppNameByTxappid(TxAppid.toStdString()));
+        if (!appid.isEmpty()) {
+            qDebug() << "lose focus:" << appid;
+            Q_EMIT app_lose_focus(appid);
+        }
     }
     else if(state == 6)
     {
-        //得到焦点
-        qDebug() << "get focus:" << appname;
-        Q_EMIT app_get_focus(appname);
+        QString appid = QString::fromStdString(getAppNameByTxappid(TxAppid.toStdString()));
+        if (!appid.isEmpty()) {
+            qDebug() << "get focus:" << appid;
+            Q_EMIT app_get_focus(appid);
+        }
     }
 }
 
@@ -242,10 +259,10 @@ std::string MdmAppEvent::getInfoByWid(const WId& _id)
      * name:存储窗口所属的应用名称
      * UID:存储用户ID，文本信息取出来是字符串
     */
-    std::string   fileName;
-    std::string   UID;
+//    std::string   fileName;
+//    std::string   UID;
 
-    fileName = "/proc/" + std::to_string(pid) + "/status";
+//    fileName = "/proc/" + std::to_string(pid) + "/status";
 
     name = getAppName(pid);
     //UID  = getAppUid(fileName);
@@ -266,7 +283,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
      * 如果找不到安装包，返回一个错误
      * 查找这个安装包都安装了哪些文件，挑选出其中的*.desktop文件并放入容器
      * 如果一个desktop文件都没找到，返回一个错误
-     * 遍历这个容器，如果只安装了一个desktop文件，那就直接返回这个desktop文件名*。*
+     * 遍历这个容器，如果只安装了一个desktop文件，那就直接返回这个desktop文件名 *。*
      * 如果有多个desktop文件，对比desktop文件的文件名和前面找到的进程启动文件名
      * 如果有一致的则返回那个一致的，如果没有一致的就返回一个最接近的
      * 如果都没有（desktop文件名都没有包含启动文件名的），那么检查desktop文件中的exec
@@ -323,6 +340,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
             qDebug() << "exe = " <<exe.c_str();
         }
 
+
         std::string appid = getAppNameByExe(desktopName, exe);
         if (!appid.empty())
             return appid;
@@ -330,6 +348,7 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
         appid = getAppNameByExecPath(desktopName, exe);
         if (!appid.empty())
             return appid;
+
 
         // 以上办法都不能匹配到就找一个最短的，同时给一个警告
         std::string name = desktopName[0];
@@ -514,4 +533,38 @@ std::string MdmAppEvent::getAppNameByExecPath(const std::vector<std::string>& _d
     if (minSize != 0)
         return name;
     return "";
+}
+
+std::string MdmAppEvent::getAppNameByTxappid(const std::string _tx_appip)
+{
+    auto iterator = this->TXAppList.find(_tx_appip);
+    if (iterator != TXAppList.end()) {
+        return iterator->second;
+    }
+    else {
+        // 如果应用是未记录的腾讯应用，则在applications中搜索所有腾讯应用并逐一匹配
+        QDir         applications("/usr/share/applications");
+        QStringList  filter;
+        filter << "tencent-*";
+
+        QList<QFileInfo> fileInfos = applications.entryInfoList(filter);
+        for (auto begin = fileInfos.begin(); begin != fileInfos.end(); ++begin) {
+            GDesktopAppInfo *desktopInfo =
+                    g_desktop_app_info_new_from_filename(begin->absoluteFilePath().toUtf8());
+            if (desktopInfo) {
+                auto appid = g_desktop_app_info_get_string(desktopInfo, "Appid");
+                if (appid && _tx_appip == appid) {
+                    std::string fileName = begin->fileName().toStdString();
+
+                    g_object_unref(desktopInfo);
+                    g_free(appid);
+
+                    return std::string(fileName.begin(), fileName.begin() + fileName.rfind("."));
+                }
+                g_object_unref(desktopInfo);
+                g_free(appid);
+            }
+        }
+        return "";
+    }
 }

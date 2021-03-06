@@ -46,7 +46,7 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
 
 int main(int argc, char *argv[])
 {
-    qInstallMessageHandler(messageOutput);
+//    qInstallMessageHandler(messageOutput);
     //if (setuid(0) != 0)
     //    qWarning() << "enhance permission error"
     QApplication a(argc, argv);

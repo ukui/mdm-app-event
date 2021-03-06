@@ -41,6 +41,11 @@ private:
     WId                            m_oldActiveWin;
     desktops                       m_desktopfps;
 
+    /*!
+     * \brief pair TXAppid : appid
+    */
+    static std::map<std::string, std::string> TXAppList;
+
     //WinData     getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
     //WinData     getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
     std::string getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
@@ -54,8 +59,8 @@ private:
     std::string getPkgNamePy(const uint&);      // 根据进程id获取Python程序的安装包名
     std::string getAppNameByExe(const std::vector<std::string>&, const std::string&);      // 根据启动文件名匹配appid
     std::string getAppNameByExecPath(const std::vector<std::string>&, const std::string&); // 根据desktop中的exec项与启动文件名exe匹配appid
+    std::string getAppNameByTxappid(const std::string);         // 根据腾讯接口的appid获取desktop名
     std::vector<std::string> getPkgContent(const std::string&); // 根据安装包名获取安装包的安装的desktop文件
-
 
     //监听 tx 应用名字
     txState m_txSateChanged;

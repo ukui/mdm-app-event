@@ -18,6 +18,9 @@ PKGCONFIG+=glib-2.0
 LIBS+=-lglib-2.0
 CONFIG += no_keywords link_pkgconfig
 
+CONFIG += link_pkgconfig no_keywords c++11 lrelease hide_symbols
+PKGCONFIG += glib-2.0 gio-2.0 gio-unix-2.0 poppler-qt5 gsettings-qt udisks2 libnotify libcanberra
+
 SOURCES += \
     main.cpp \
     mdm_app_event.cpp
