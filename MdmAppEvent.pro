@@ -14,12 +14,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-PKGCONFIG+=glib-2.0
-LIBS+=-lglib-2.0
+PKGCONFIG+=glib-2.0 gio-2.0 gio-unix-2.0
 CONFIG += no_keywords link_pkgconfig
-
-CONFIG += link_pkgconfig no_keywords c++11 lrelease hide_symbols
-PKGCONFIG += glib-2.0 gio-2.0 gio-unix-2.0 poppler-qt5 gsettings-qt udisks2 libnotify libcanberra
 
 SOURCES += \
     main.cpp \

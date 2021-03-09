@@ -51,21 +51,63 @@ private:
     std::string getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
     std::string getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
 
-    std::string getAppName(const uint&);        // 根据进程id获取进程的安装包名
-    //std::string getAppUid(const std::string&);  // 根据/proc/pid/status获取UID
-    std::string getPkgName(const std::string&); // 根据可执行文件路径获取安装包名
-    QString     getDesktopNameByPkg(const QString&); // 根据包名获取desktop文件名
-    WId         getWidByDesktop(const std::string&, const uint&); // 根据desktop文件名和UID获取Wid
-    std::string getPkgNamePy(const uint&);      // 根据进程id获取Python程序的安装包名
-    std::string getAppNameByExe(const std::vector<std::string>&, const std::string&);      // 根据启动文件名匹配appid
-    std::string getAppNameByExecPath(const std::vector<std::string>&, const std::string&); // 根据desktop中的exec项与启动文件名exe匹配appid
-    std::string getAppNameByTxappid(const std::string);         // 根据腾讯接口的appid获取desktop名
-    std::vector<std::string> getPkgContent(const std::string&); // 根据安装包名获取安装包的安装的desktop文件
+    /*!
+     * \brief getAppName
+     * \param pid
+     * \details 根据pid获取所需desktop文件名
+     * 首先通过pid获取窗口进程的exe和cmdline，使用exe获取对应的安装包名
+     * 根据安装包名获取安装包所安装的所有desktop文件
+     * 用cmdline和desktop文件中的exec对比，与cmdline一致则为所需desktop文件
+     * 无法通过cmdline匹配到的进程为使用脚本启动的进程，如wps
+     * 针对这种进程寻找其父进程来获取实际的cmdline并和desktop的exec进行对比
+     * 如果都无法获取则证明这个进程的父进程在拉起窗口后已经退出，进行特殊处理
+    */
+    std::string getAppName(const uint&);
+
+    /*!
+     * \brief getPkgName
+     * \param 进程启动路径
+    */
+    std::string getPkgName(const std::string&);
+
+    /*!
+     * \brief getAppNameByCmdline
+     * \param 某个包安装的desktop文件列表 cmdline
+     * \details 对比desktop的exec和cmdline获取所需desktop文件名
+    */
+    std::string getAppNameByCmdline(const std::vector<std::string>&, const std::string&);
+
+    /*!
+     * \brief getAppNameByPPid
+     * \param 某个包安装的desktop文件列表 pid
+     * \details 根据pid获取相应的父进程，使用父进程的cmdline来对比desktop
+    */
+    std::string getAppNameByPPid(const std::vector<std::string>&, const uint&);
+
+    /*!
+     * \brief getAppNameByTxappid
+     * \param 腾讯appid
+     * \details 根据腾讯的appid获取所需的desktop文件名
+    */
+    std::string getAppNameByTxappid(const std::string&);
+
+    /*!
+     * \brief getPkgContent
+     * \param 安装包名
+     * \details 获取安装包安装的所有desktop文件名
+    */
+    std::vector<std::string> getPkgContent(const std::string&);
+
+//    std::string getAppUid(const std::string&);  // 根据/proc/pid/status获取UID
+//    QString     getDesktopNameByPkg(const QString&); // 根据包名获取desktop文件名
+//    WId         getWidByDesktop(const std::string&, const uint&); // 根据desktop文件名和UID获取Wid
+//    std::string getPyExePath(const uint&);          // 根据进程id获取Python程序的真实启动路径
+//    std::string getAppNameByExe(const std::vector<std::string>&, const std::string&);     // 根据启动文件名匹配appid
 
     //监听 tx 应用名字
-    txState m_txSateChanged;
-    QString m_txOpenedAppName="";
-    QString m_txClosedAppName="";
+//    txState m_txSateChanged;
+//    QString m_txOpenedAppName="";
+//    QString m_txClosedAppName="";
 
 Q_SIGNALS:
     /*!
@@ -91,10 +133,9 @@ private Q_SLOTS:
                       NET::Properties2);
     void getActiveWinChanged(WId);
 
-    //监听 tx 应用名字
-    void getTXClosed(QString,QString,int);
+    void getTXClosed(QString,QString, int);
     void getTXOpened(QString,QString);
-    void getTXStateChanged(QString,QString,int);
+    void getTXStateChanged(QString,QString, int);
 };
 
 #endif // MDMAPPEVENT_H
