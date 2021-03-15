@@ -1,4 +1,4 @@
-mdm-app-event-service (1.0.1-1+1028) v101; urgency=medium
+mdm-app-event-service (1.0.1-2+0315) v101; urgency=medium
 
   * Fix: 腾讯应用无法统计时长
   * Fix: WPS应用统计时长错误
