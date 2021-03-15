@@ -144,7 +144,7 @@ void MdmAppEvent::getAddSig(WId _id)
 void MdmAppEvent::getRemoveSig(WId _id)
 {
     std::string winData;
-    auto    win = m_windowList.find(_id);
+    auto        win = m_windowList.find(_id);
     if (win == m_windowList.end()) {
         m_lastCloseWin = std::make_pair(0, std::string());
     }
@@ -223,7 +223,6 @@ void MdmAppEvent::getChangeSig(WId _id,
 
 uint MdmAppEvent::closeApp(QString appid)
 {
-
     bool isFind = false;
     std::multimap<WId, WinData> list = m_windowList;
     for (auto begin = list.begin(); begin != list.end(); ++begin) {
@@ -235,9 +234,8 @@ uint MdmAppEvent::closeApp(QString appid)
             isFind = true;
         }
     }
-    if (isFind){
+    if (isFind)
         return 0;
-    }
     else
         return 2;
 }
@@ -327,7 +325,6 @@ std::string MdmAppEvent::getAppName(const uint& _pid)
 
     // 无法通过cmdline和desktop中的启动路径直接匹配的认为是脚本拉起的
     appid = getAppNameByPPid(desktopName, _pid);
-    qDebug() << appid.c_str();
     if (!appid.empty())
         return appid;
 
@@ -448,7 +445,6 @@ std::vector<std::string> MdmAppEvent::getPkgContent(const std::string& _pkgname)
     return desktopName;
 }
 
-
 std::string MdmAppEvent::getAppNameByCmdline(const std::vector<std::string>& _desktops, const std::string& _cmdline)
 {
     for (auto begin = _desktops.begin(); begin != _desktops.end(); ++begin) {
@@ -460,7 +456,9 @@ std::string MdmAppEvent::getAppNameByCmdline(const std::vector<std::string>& _de
             qWarning() << "GDesktopAppInfo:get file failed:" << begin->c_str();
             continue;
         }
-        std::string exec = g_desktop_app_info_get_string(desktopInfo, "Exec");
+        char* exec_c = g_desktop_app_info_get_string(desktopInfo, "Exec");
+        std::string exec = exec_c;
+        g_free(exec_c);
         if (exec.find("%") != std::string::npos)
             exec = std::string(exec.begin(), exec.begin() + exec.find("%") - 1);
 
@@ -545,7 +543,6 @@ std::string MdmAppEvent::getAppNameByPPid(const std::vector<std::string> &_deskt
     if (cmdline.find('\x0') != std::string::npos)
         cmdline = std::string(cmdline.begin(), cmdline.begin() + cmdline.find('\x0'));
 
-    qDebug() << cmdline.c_str();
     return getAppNameByCmdline(_desktops, cmdline);
 }
 
