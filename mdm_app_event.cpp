@@ -143,28 +143,35 @@ void MdmAppEvent::getAddSig(WId _id)
 
 void MdmAppEvent::getRemoveSig(WId _id)
 {
-    std::string winData;
-    auto        win = m_windowList.find(_id);
+    auto win = m_windowList.find(_id);
     if (win == m_windowList.end()) {
         m_lastCloseWin = std::make_pair(0, std::string());
+        return;
     }
-    else {
-        winData = win->second;
 
-        if(winData != "txeduplatform-runtime")
-        {
-            Q_EMIT app_close(QString::fromStdString(winData));
-            qDebug() << "close window:" << QString::fromStdString(winData);
-            m_lastCloseWin = *win;
-            m_windowList.erase(win);
-        }
+    if(win->second != "txeduplatform-runtime")
+    {
+        Q_EMIT app_close(QString::fromStdString(win->second));
+        qDebug() << "close window:" << QString::fromStdString(win->second);
+        m_lastCloseWin = std::make_pair(win->first, win->second);
+        m_windowList.erase(win);
     }
 }
 
 void MdmAppEvent::getActiveWinChanged(WId _id)
 {
     // 在窗口层面，窗口活动等于得到焦点
+
+    /*!
+     * _id是获得焦点的窗口id
+     * m_oldActiveWin是上次得到焦点的窗口，也就是这次失焦的窗口
+     * 如果获得焦点的窗口已经被记录则发出信号，如果没有被记录则跳过这次信号
+     * 如果失去上次活跃的窗口被记录则发出信号，如果没有被记录则跳过这次信号
+     * 更新m_oldActiveWin
+    */
+
     if(m_windowList.find(_id) != m_windowList.end()) {
+        // 如果_id以及被记录，发出获得焦点信号
         std::string winData = getWinInfo(_id);
         // QString app = getDesktopNameByPkg(winData.first);
         if(winData != "txeduplatform-runtime")
@@ -174,25 +181,33 @@ void MdmAppEvent::getActiveWinChanged(WId _id)
         }
     }
 
-    std::string oldWinData;
-    if (m_oldActiveWin != 0 && m_oldActiveWin == m_lastCloseWin.first) {
-        oldWinData = m_lastCloseWin.second;
-        m_lastCloseWin.first = 0;
-    }
-    else {
-        if (m_windowList.find(m_oldActiveWin) == m_windowList.end()) {
-            m_oldActiveWin = _id;
-            return;
-        }
-        oldWinData = getWinInfo(m_oldActiveWin);
+//    std::string oldWinData = getWinInfo(m_oldActiveWin);
+//    if (m_oldActiveWin != 0 && m_oldActiveWin == m_lastCloseWin.first) {
+//        // 如果上一个活跃的窗口是上次关闭的窗口则跳过失去焦点的窗口，则使用上次关闭的窗口的信息
+//        oldWinData = m_lastCloseWin.second;
+//        m_lastCloseWin.first = 0;
+//    }
+//    else {
+//        if (m_windowList.find(m_oldActiveWin) == m_windowList.end()) {
+//            // 不是上一个关闭的窗口也不在窗口记录中，认为是一个bedwindow，跳过
+//            m_oldActiveWin = _id;
+//            return;
+//        }
+//        oldWinData = getWinInfo(m_oldActiveWin);
+//    }
+
+//    KWindowInfo wininfo(_id, NET::Property::WMState);
+    auto lastWin = m_windowList.find(m_oldActiveWin);
+    if (lastWin == m_windowList.end()) {
+        m_oldActiveWin = _id;
+        return;
     }
 
-    // QString app = getDesktopNameByPkg(oldWinData.first);
-    if (oldWinData.length()!=0) {
-        if(oldWinData != "txeduplatform-runtime")
+    if (lastWin->second.length()!=0) {
+        if(lastWin->second != "txeduplatform-runtime")
         {
-            qDebug() << "lose focuse:" << QString::fromStdString(oldWinData);
-            Q_EMIT app_lose_focus(QString::fromStdString(oldWinData));
+            qDebug() << "lose focuse:" << QString::fromStdString(lastWin->second);
+            Q_EMIT app_lose_focus(QString::fromStdString(lastWin->second));
         }
     }
     m_oldActiveWin = _id;

@@ -46,7 +46,7 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
 
 int main(int argc, char *argv[])
 {
-//    qInstallMessageHandler(messageOutput);
+    qInstallMessageHandler(messageOutput);
     QApplication a(argc, argv);
     a.setSetuidAllowed(true);
     MdmAppEvent event;
