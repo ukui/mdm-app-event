@@ -13,15 +13,15 @@
 
 #define APP_PATH "/usr/share/applications/"
 
-std::map<std::string, std::string>
-MdmAppEvent::TXAppList = {
-                            {"0779b2dd64bb4d2ea4dfcb48dbb8c491", "tencent-chinese-composition-correction"},
-                            {"2f4a6a9071b642ee6eb72f55de74506e", "tencent-course-center"},
-                            {"38651128f1384d07a69ca184e6f9ccb6", "tencent-english-composition-correction"},
-                            {"558f8d31c2524e68292bccd8cda17d23", "tencent-homework"},
-                            {"06c71dbf873c46229d66cde9c4e8f18e", "tencent-precise-practice"},
-                            {"b12f7283c27f4e48a7bd9510587f3c42", "tencent-translator"}
-                         };
+//std::map<std::string, std::string>
+//MdmAppEvent::TXAppList = {
+//                            {"0779b2dd64bb4d2ea4dfcb48dbb8c491", "tencent-chinese-composition-correction"},
+//                            {"2f4a6a9071b642ee6eb72f55de74506e", "tencent-course-center"},
+//                            {"38651128f1384d07a69ca184e6f9ccb6", "tencent-english-composition-correction"},
+//                            {"558f8d31c2524e68292bccd8cda17d23", "tencent-homework"},
+//                            {"06c71dbf873c46229d66cde9c4e8f18e", "tencent-precise-practice"},
+//                            {"b12f7283c27f4e48a7bd9510587f3c42", "tencent-translator"}
+//                         };
 
 MdmAppEvent::MdmAppEvent(QObject *_parent) : QObject(_parent), m_win(KWindowSystem::self()),
                                                                m_windowList(),
@@ -238,6 +238,7 @@ void MdmAppEvent::getChangeSig(WId _id,
 
 uint MdmAppEvent::closeApp(QString appid)
 {
+    qDebug() << "close app:" << appid;
     if (appid.contains("tencent")) {
         if(appid.isEmpty())
             return 2;
@@ -519,36 +520,36 @@ std::string MdmAppEvent::getAppNameByCmdline(const std::vector<std::string>& _de
 
 std::string MdmAppEvent::getAppNameByTxappid(const std::string& _tx_appip)
 {
-    auto iterator = this->TXAppList.find(_tx_appip);
-    if (iterator != TXAppList.end()) {
-        return iterator->second;
-    }
-    else {
+//    auto iterator = this->TXAppList.find(_tx_appip);
+//    if (iterator != TXAppList.end()) {
+//        return iterator->second;
+//    }
+//    else {
         // 如果应用是未记录的腾讯应用，则在applications中搜索所有腾讯应用并逐一匹配
-        QDir         applications("/usr/share/applications");
-        QStringList  filter;
-        filter << "tencent-*";
+    QDir         applications("/usr/share/applications");
+    QStringList  filter;
+    filter << "tencent-*";
 
-        QList<QFileInfo> fileInfos = applications.entryInfoList(filter);
-        for (auto begin = fileInfos.begin(); begin != fileInfos.end(); ++begin) {
-            GDesktopAppInfo *desktopInfo =
-                    g_desktop_app_info_new_from_filename(begin->absoluteFilePath().toUtf8());
-            if (desktopInfo) {
-                auto appid = g_desktop_app_info_get_string(desktopInfo, "Appid");
-                if (appid && _tx_appip == appid) {
-                    std::string fileName = begin->fileName().toStdString();
+    QList<QFileInfo> fileInfos = applications.entryInfoList(filter);
+    for (auto begin = fileInfos.begin(); begin != fileInfos.end(); ++begin) {
+        GDesktopAppInfo *desktopInfo =
+                g_desktop_app_info_new_from_filename(begin->absoluteFilePath().toUtf8());
+        if (desktopInfo) {
+            auto appid = g_desktop_app_info_get_string(desktopInfo, "Appid");
+            if (appid && _tx_appip == appid) {
+                std::string fileName = begin->fileName().toStdString();
 
-                    g_object_unref(desktopInfo);
-                    g_free(appid);
-
-                    return std::string(fileName.begin(), fileName.begin() + fileName.rfind("."));
-                }
                 g_object_unref(desktopInfo);
                 g_free(appid);
+
+                return std::string(fileName.begin(), fileName.begin() + fileName.rfind("."));
             }
+            g_object_unref(desktopInfo);
+            g_free(appid);
         }
-        return std::string();
     }
+    return std::string();
+//    }
 }
 
 std::string MdmAppEvent::getAppNameByPPid(const std::vector<std::string> &_desktops, const uint& _pid)

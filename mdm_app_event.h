@@ -51,7 +51,7 @@ private:
      * \brief TXAppList
      * \typedef std::map<TXAppid, appid>
     */
-    static std::map<std::string, std::string> TXAppList;
+//    static std::map<std::string, std::string> TXAppList;
 
     std::string getInfoByWid(const WId&);       // 根据窗口id取得窗口安装包名和UID
     std::string getWinInfo(const WId&);         // 根据窗口id从m_windowList取窗口信息
