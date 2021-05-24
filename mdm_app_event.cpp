@@ -238,6 +238,38 @@ void MdmAppEvent::getChangeSig(WId _id,
 
 uint MdmAppEvent::closeApp(QString appid)
 {
+    if (appid.contains("tencent")) {
+        if(appid.isEmpty())
+            return 2;
+        QString path = "/usr/share/applications/";
+        //设置要遍历的目录
+        QString filename = path + appid + ".desktop";
+        GError** error=nullptr;
+        GKeyFileFlags flags=G_KEY_FILE_NONE;
+        GKeyFile* keyfile=g_key_file_new ();
+
+        QByteArray fpbyte=filename.toLocal8Bit();
+        char* filepath=fpbyte.data();
+        g_key_file_load_from_file(keyfile,filepath,flags,error);
+        char* exec=g_key_file_get_locale_string(keyfile,"Desktop Entry","Appid", nullptr, nullptr);
+        g_key_file_free(keyfile);
+        QString id = QString::fromLocal8Bit(exec);
+        qDebug()<<id;
+        QDBusInterface iface("cn.txeduplatform.server",
+                             "/cn/txeduplatform/server",
+                             "cn.txeduplatform.server.apps",
+                             QDBusConnection::sessionBus());
+        QDBusMessage result = iface.call("Close",id);
+        QList<QVariant> outArgs = result.arguments();
+        int status = outArgs.at(0).value<int>();
+        if ( status == 0 ) {
+             return 0;
+        } else {
+             return 2;
+        }
+    }
+
+
     bool isFind = false;
     std::multimap<WId, WinData> list = m_windowList;
     for (auto begin = list.begin(); begin != list.end(); ++begin) {
